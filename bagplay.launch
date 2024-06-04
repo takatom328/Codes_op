@@ -1,0 +1,9 @@
+<launch>
+  <include file="$(find pimouse_ros)/launch/pimouse.launch" />
+  <node pkg="rosbag" type="play" name="player" outptu="screen" args="/home/catkin/2024-06-04-08-24-28.bag" required="true" />
+  <node pkg="pimouse_vision_control" name="face_to_face" type="face_to_face.py" output="screen" />
+
+  <node pkg="mjpeg_server" name="mjpeg_server" type="mjpeg_server" >
+    <param name="port" value="8080" />
+  </node>
+</launch> 
