@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 #encoding: utf8
-import sys, rospy, math
+import sys, rospy, math, tf #240606 gmapで追加
 from pimouse_ros.msg import MotorFreqs
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Quaternion, TransformStamped, Point #2400606 gmapで追加 Quaternion以下
 from std_srvs.srv import Trigger, TriggerResponse
 from pimouse_ros.srv import TimedMotion                                               #追加
+from nav_msgs.msg import Odometry #240606 gmapで追加
 
 class Motor():
     def __init__(self):
@@ -18,6 +19,17 @@ class Motor():
         self.srv_tm = rospy.Service('timed_motion', TimedMotion, self.callback_tm)    #追加
         self.last_time = rospy.Time.now()
         self.using_cmd_vel = False
+
+        #240606 以下gmapで追加
+        self.pub_odom = rospy.Publish('odom', Odometry, queue_size=10)
+        self.bc_odom = tf.TransformBroadcaster()
+
+        self.x, self.y, self.th = 0.0, 0.0, 0.0
+        self.vx, self.vth = 0.0, 0.0
+
+        self.cur_time = rospy.Time.now()
+        self.last_time = self.cur_time
+
 
     def set_power(self,onoff=False):
         en = "/dev/rtmotoren0"
@@ -48,12 +60,46 @@ class Motor():
         self.set_raw_freq(message.left_hz,message.right_hz)
 
     def callback_cmd_vel(self,message):
+        # 240606 gmapで追加 ここから
+        if not self.is_on:
+            return
+        self.vx = message.linear.x
+        self.vth = message.angular.z
+        # ここまで
+
         forward_hz = 80000.0*message.linear.x/(9*math.pi)
         rot_hz = 400.0*message.angular.z/math.pi
         self.set_raw_freq(forward_hz-rot_hz, forward_hz+rot_hz)
 
         self.using_cmd_vel = True
         self.last_time = rospy.Time.now()
+
+    def send_odm(self):                 #240606 gmapで追加 send_odom
+        self.cur_time = rospy.Time.now()
+
+        dt = self.cur_time.to_sec() - self.last_time.to_sec()
+        self.x += self.vx * math.cos(self.th) * dt
+        self.y += self.vx * math.sin(self.th) * dt
+        self.th += self.vth * dt
+
+        q = tf.transformations.quaternion_from_euler(0, 0, self.th)
+        self.bc_odom.sendTransform((self.x,self.y,0.0), q, self.cur_time,"base_link","odom")
+
+        odom = Odometry()
+        odom.header.stamp = self.cur_time
+        odom.header.frame_id = "odom"
+        odom.child_frame_id = "base_link"
+
+        odom.pose.pose.position = Point(self.x,self.y,0)
+        odom.pose.pose.orientation = Quaternion(*q)
+
+        odom.twist.twist.linear.x = self.vx
+        odom.twist.twist.linear.y = 0.0
+        odom.twist.twist.angular.z = self.vth
+
+        self.pub_odom.publish(odom)
+
+        self.last_time = self.cur_time
 
     def onoff_response(self,onoff):                                #以下3つのメソッドを追加
         d = TriggerResponse()
@@ -86,9 +132,7 @@ if __name__ == '__main__':
 
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
-        if m.using_cmd_vel and rospy.Time.now().to_sec() - m.last_time.to_sec() >= 1.0:
-            m.set_raw_freq(0,0)
-            m.using_cmd_vel = False
+        m.send_odom()   # 240606 p242 gmapで変更
         rate.sleep()
 
 # Copyright 2016 Ryuichi Ueda
