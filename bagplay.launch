@@ -1,6 +1,6 @@
 <launch>
   <include file="$(find pimouse_ros)/launch/pimouse.launch" />
-  <node pkg="rosbag" type="play" name="player" outptu="screen" args="/home/catkin/2024-06-04-08-24-28.bag" required="true" />
+  <node pkg="rosbag" type="play" name="player" output="screen" args="/home/ubuntu/catkin_ws/src/pimouse_vision_control/2024-06-05-06-46-26.bag" required="true" />
   <node pkg="pimouse_vision_control" name="face_to_face" type="face_to_face.py" output="screen" />
 
   <node pkg="mjpeg_server" name="mjpeg_server" type="mjpeg_server" >

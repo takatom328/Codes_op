@@ -4,7 +4,7 @@ import rospy, cv2, math
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
-from stc_srvs.srv import Trigger
+from std_srvs.srv import Trigger
 
 class FaceToFace():
    def __init__(self):
@@ -14,7 +14,7 @@ class FaceToFace():
        self.pub = rospy.Publisher("face", Image, queue_size=1)
 
        #モーター制御追加#
-       self.cmd_vel = rospy.Publisher('/cmd_vel, Twist, queue_size=1')
+       self.cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
        rospy.wait_for_service('/motor_on')
        rospy.wait_for_service('/motor_off')
        rospy.on_shutdown(rospy.ServiceProxy('/motor_off', Trigger).call)
